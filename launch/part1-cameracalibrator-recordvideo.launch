@@ -1,0 +1,9 @@
+<launch>
+	<node name="rosbag" pkg="rosbag" type="play" args="/vagrant/2016-11-22-14-32-13_test.cameracalibrator.bag"/>
+	<node name="image_proc" pkg="image_proc" type="image_proc" respawn="false" ns="/sensors/camera">
+		<remap from="image_raw" to="image_color"/>
+	</node>
+	<node name="rect_video_recorder" pkg="image_view" type="video_recorder" respawn="false">
+		<remap from="image" to="/sensors/camera/image_rect_color"/>
+	</node>
+</launch>
