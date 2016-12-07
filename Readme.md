@@ -245,6 +245,8 @@ $ ffmpeg -i calibration-original.avi -i calibration-part1.avi -i calibration-cam
 
 The resulting video can be found [here](https://www.youtube.com/watch?v=d5EWqrG8jNw).
 
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/d5EWqrG8jNw/0.jpg)](http://www.youtube.com/watch?v=d5EWqrG8jNw)
+
 **Note:** The videos are not synchronized, but they're close enough to see the results of the comparison.
 
 The image below shows a representative capture of the calibrations. The original image is on the left, and the rectified images from the manual and automatic calibrations are in the middle and right, respectively. As you can see, the manual calibration does not correct the radial distortion at the far edges of the image; however, both calibrations show a rectified checker board in the center of the image. In typical use cases, both calibrations should be adequate. 
