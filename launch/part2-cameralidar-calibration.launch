@@ -1,0 +1,6 @@
+<launch>
+	<node name="rosbag" pkg="rosbag" type="play" args="/vagrant/2016-11-22-14-32-13_test.part1.bag"/>
+	<node name="lidar_image_calibration" pkg="lidar_image_calibration" type="lidar_image_calibration.py" args="/vagrant/data/lidar_image_calibration_data.json Images/lidar_calibration_frame.jpg /vagrant/Results/Images/lidar_calibration_output.jpg " output="screen">
+		<remap from="camera" to="/sensors/camera/camera_info"/>
+	</node>
+</launch>

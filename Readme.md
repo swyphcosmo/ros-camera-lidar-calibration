@@ -245,11 +245,183 @@ $ ffmpeg -i calibration-original.avi -i calibration-part1.avi -i calibration-cam
 
 The resulting video can be found [here](https://www.youtube.com/watch?v=d5EWqrG8jNw).
 
-[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/d5EWqrG8jNw/0.jpg)](http://www.youtube.com/watch?v=d5EWqrG8jNw)
+[![Image Rectification Video](http://img.youtube.com/vi/d5EWqrG8jNw/0.jpg)](http://www.youtube.com/watch?v=d5EWqrG8jNw)
 
 **Note:** The videos are not synchronized, but they're close enough to see the results of the comparison.
 
 The image below shows a representative capture of the calibrations. The original image is on the left, and the rectified images from the manual and automatic calibrations are in the middle and right, respectively. As you can see, the manual calibration does not correct the radial distortion at the far edges of the image; however, both calibrations show a rectified checker board in the center of the image. In typical use cases, both calibrations should be adequate. 
 
 ![Image Calibration Comparison](Results/Images/part1-video-screenshot.png)
+
+# Task #2: LIDAR to Image Calibration
+
+## Running Image / LIDAR calibration
+
+A ROS package was created to hold scripts used to run calibration. To use them, first add `scripts` folder to `ROS_PACKAGE_PATH`
+
+```shell
+$ export ROS_PACKAGE_PATH=/vagrant/scripts:$ROS_PACKAGE_PATH
+```
+
+A launch file was created to start calibration 
+
+```shell
+$ roslaunch launch/part2-cameralidar-calibration.launch
+```
+
+```xml
+<launch>
+	<node name="rosbag" pkg="rosbag" type="play" args="/vagrant/2016-11-22-14-32-13_test.part1.bag"/>
+	<node name="lidar_image_calibration" pkg="lidar_image_calibration" type="lidar_image_calibration.py" args="/vagrant/data/lidar_image_calibration_data.json Images/lidar_calibration_frame.jpg /vagrant/Results/Images/lidar_calibration_output.jpg " output="screen">
+		<remap from="camera" to="/sensors/camera/camera_info"/>
+	</node>
+</launch>
+```
+
+The script `scripts/lidar_image_calibration/lidar_image_calibration.py` requires a `.json` file containing point correspondences between 3D Points and 2D image coordinates. The point correspondences used to generate the results below can be found in `data/lidar_image_calibration_data.json`. Optional parameters can be included to generate an image using the expected and generated image coordinates for the provided 3D points.
+
+```json
+{
+	"points": [ 
+		[ 1.568, 0.159, -0.082, 1.0 ], // top left corner of grid
+		[ 1.733, 0.194, -0.403, 1.0 ], // bottom left corner of grid
+		[ 1.595, -0.375, -0.378, 1.0 ], // bottom right corner of grid
+		[ 1.542, -0.379, -0.083, 1.0 ], // top right corner of grid
+		[ 1.729, -0.173, 0.152, 1.0 ], // middle of face
+		[ 3.276, 0.876, -0.178, 1.0 ] // corner of static object
+	],
+	"uvs": [
+		[ 309, 315 ],
+		[ 304, 433 ],
+		[ 491, 436 ],
+		[ 490, 321 ],
+		[ 426, 286 ],
+		[ 253, 401 ]
+	],
+	"initialTransform": [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ],
+	"bounds": [
+		[ -5, 5 ],
+		[ -5, 5 ],
+		[ -5, 5 ],
+		[ 0, 6.28318530718 ], // 2 * pi
+		[ 0, 6.28318530718 ], // 2 * pi
+		[ 0, 6.28318530718 ] // 2 * pi
+	]
+}
+```
+
+### How it works
+
+The calibration script relies on the `scipy.optimize.minimize` function to find the translation and rotation between the camera frame and LIDAR frame. `minimize` can perform bounded optimization to limit the state parameters. The translation along each axis is limited to ± 5.0 meters. The rotation angles are limited between 0 and 360 degrees (2 pi radians).
+
+The cost function to be minimized is the sum of the magnitudes of the error between expected UV coordinates and those obtained by the state parameters at each step of the optimization. 
+
+Some initial state vectors, including `[ 0, 0, 0, 0, 0, 0 ]`, has a positive gradient in the neighborhood surrounding it. This results in unsuccessful optimization. To counteract this, a new initial state vector is picked randomly within the bounds of each parameter. In order to find a minima closer to the unknown global minimum, new initial state vectors are also randomly picked until a successful optimization results in an error of less than 50 pixels. 
+
+
+## Creating the composite LIDAR image
+
+Once the optimized state parameters are found by the previous step, the state vector can be added to the `static_transform_provider` node inside `Launch/part2-cameralidar.launch`.
+
+```xml
+<launch>
+	<param name="use_sim_time" value="true" />
+	<node name="rosbag" pkg="rosbag" type="play" args="-r 0.25 --clock /vagrant/2016-11-22-14-32-13_test.part1.bag"/>
+	<node name="image_proc" pkg="image_proc" type="image_proc" respawn="false" ns="/sensors/camera">
+		<remap from="image_raw" to="image_color"/>
+	</node>
+	<node name="tf" pkg="tf" type="static_transform_publisher" args="-0.05937507 -0.48187289 -0.26464405  5.41868013  4.49854285 2.46979746 world velodyne 10"/>
+	<node name="lidar_image_calibration" pkg="lidar_image_calibration" type="lidar_image.py" args="">
+		<remap from="image" to="/sensors/camera/image_rect_color"/>
+		<remap from="image_lidar" to="/sensors/camera/image_lidar"/>
+		<remap from="camera" to="/sensors/camera/camera_info"/>
+		<remap from="velodyne" to="/sensors/velodyne_points"/>
+	</node>
+	<!--<node name="image_view" pkg="image_view" type="image_view" args="">
+		<remap from="image" to="/sensors/camera/image_lidar"/>
+	</node>-->
+	<node name="rect_video_recorder" pkg="image_view" type="video_recorder" respawn="false">
+		<remap from="image" to="/sensors/camera/image_lidar"/>
+	</node>
+</launch>
+```
+
+This launch file provides the option to view the composite image in real-time through `image_view` or to record a video containing the images for the entire data stream. 
+
+The image below shows an example of the composite image. 
+
+![Camera LIDAR Composite Image](Results/Images/lidar_result.jpg)
+
+### How it works
+
+`lidar_image.py` subscribes to the following data sources:
+
+* The rectified camera image: `/sensors/camera/image_rect_color`
+* The calibration transform: `/world/velodyne`
+* The camera calibration information for projecting the LIDAR points: `/sensors/camera/camera_info`
+* The Velodyne data scan: `/sensors/velodyne_points`
+
+As each LIDAR scan is received, the scan data is unpacked from the message structure using `struct.unpack`. Each scan point contains the x, y, and z coordinates in meters, and the intensity of the reflected laser beam.
+
+```python
+formatString = 'ffff'
+if data.is_bigendian:
+  formatString = '>' + formatString
+else:
+  formatString = '<' + formatString
+
+points = []
+for index in range( 0, len( data.data ), 16 ):
+  points.append( struct.unpack( formatString, data.data[ index:index + 16 ] ) )
+```
+
+This is needed because there are not officially supported Python libraries for Point Cloud Library. The `python_pcl` package has been created and is available [here](http://strawlab.github.io/python-pcl/). While this module was compiled and tested, the simplicity of unpacking the structure manually was chosen over importing an external module.
+
+As each image is received, `cv_bridge` is used to convert the ROS Image sensor message to an OpenCV compatible format. 
+
+The `/world/velodyne` transform is obtained each frame. This proved useful during an attempt at manual calibration. This is converted into an affine transformation matrix containing the rotation and translation between frames. 
+
+Each point of the laser scan was then transformed into the camera frame. Points that are more than 4.0 meters away from the camera were thrown out to aid in declutter the composite image. Points with negative z value were also thrown out as they represent scan points which are behind the camera's field of view.
+
+A pin hole camera model was used to project the rotated 3D points into image coordinates. Red circles are rendered for each point which is projected inside the image bounds.   
+
+## Results
+
+Six points were picked for image calibration using `rviz`
+
+1. Top left corner of calibration grid
+2. Bottom left corner of calibration grid
+3. Bottom right corner of calibration grid
+4. Top right corner of calibration grid
+5. The center of the face of the person holding the calibration grid
+6. The corner of the static object on the left side of the image
+
+The optimized transform obtained was:
+
+```python
+# Position in meters, angles in radians
+( offsetX, offsetY, offsetZ, yaw, pitch, roll ) = [ -0.05937507, -0.48187289, -0.26464405, 5.41868013, 4.49854285, 2.46979746 ]
+
+# Angles in degrees
+( yawDeg, pitchDeg, rollDeg ) = [ 310.4675019812, 257.7475192644, 141.5089707105 ]
+``` 
+
+The image below shows the expected image coordinates in blue and the points created by the optimized transform in red.
+
+![Camera LIDAR Calibration Comparison](Results/Images/lidar_calibration_output.jpg)
+
+As you can see, the most error comes from the point on the face and the points on the right side of the calibration grid. However, the total error obtained is only about 35 pixels.
+
+Using this transform, a video was created to show how well all of the LIDAR points in the bagfile align to the image. Because this code is running in a virtual machine and the LIDAR scans at a higher frequency, the image and LIDAR scans are not in sync; however, when the person in the image stops for a moment, you can see how well the calibration worked. 
+
+The resulting video can be found [here](https://www.youtube.com/watch?v=8yN3GAD8MTo). 
+
+[![Camera LIDAR Video](http://img.youtube.com/vi/8yN3GAD8MTo/0.jpg)](http://www.youtube.com/watch?v=8yN3GAD8MTo)
+
+**Note:** This video was sped up to 2x speed to account for the slower rate the bagfile was played.
+
+```shell
+$ ffmpeg -i Results/Videos/part2-lidar-image.avi -filter:v "setpts=2.0*PTS" -c:v libx264 -crf 23 -preset veryfast output.mp4
+```
+
 

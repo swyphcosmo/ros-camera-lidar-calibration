@@ -1,0 +1,20 @@
+<launch>
+	<param name="use_sim_time" value="true" />
+	<node name="rosbag" pkg="rosbag" type="play" args="-r 0.25 --clock /vagrant/2016-11-22-14-32-13_test.part1.bag"/>
+	<node name="image_proc" pkg="image_proc" type="image_proc" respawn="false" ns="/sensors/camera">
+		<remap from="image_raw" to="image_color"/>
+	</node>
+	<node name="tf" pkg="tf" type="static_transform_publisher" args="-0.05937507 -0.48187289 -0.26464405  5.41868013  4.49854285 2.46979746 world velodyne 10"/>
+	<node name="lidar_image_calibration" pkg="lidar_image_calibration" type="lidar_image.py" args="">
+		<remap from="image" to="/sensors/camera/image_rect_color"/>
+		<remap from="image_lidar" to="/sensors/camera/image_lidar"/>
+		<remap from="camera" to="/sensors/camera/camera_info"/>
+		<remap from="velodyne" to="/sensors/velodyne_points"/>
+	</node>
+	<!--<node name="image_view" pkg="image_view" type="image_view" args="">
+		<remap from="image" to="/sensors/camera/image_lidar"/>
+	</node>-->
+	<node name="rect_video_recorder" pkg="image_view" type="video_recorder" respawn="false">
+		<remap from="image" to="/sensors/camera/image_lidar"/>
+	</node>
+</launch>
