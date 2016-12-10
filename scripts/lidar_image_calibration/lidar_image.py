@@ -13,7 +13,7 @@ import struct
 import math
 import numpy as np
 
-class FrameDrawer:
+class LidarImage:
 
 	def __init__( self ):
 		self._imageInputName = rospy.resolve_name( 'image' )
@@ -45,8 +45,8 @@ class FrameDrawer:
 		try:
 			cvImage = self._bridge.imgmsg_to_cv2( data, 'bgr8' )
 		except cv_bridge.CvBridgeError as e:
-			rospy.logerr( '[drawFrames] Failed to convert image' )
-			rospy.logerr( '[drawFrames] ' + e )
+			rospy.logerr( '[lidar_image] Failed to convert image' )
+			rospy.logerr( '[lidar_image] ' + e )
 			print( e )
 			return
 
@@ -98,8 +98,8 @@ class FrameDrawer:
 		try:
 			self._imageOutput.publish( self._bridge.cv2_to_imgmsg( cvImage, 'bgr8' ) )
 		except cv_bridge.CvBridgeError as e:
-			rospy.logerr( '[drawFrames] Failed to convert image to message' )
-			rospy.logerr( '[drawFrames] ' + e )
+			rospy.logerr( '[lidar_image] Failed to convert image to message' )
+			rospy.logerr( '[lidar_image] ' + e )
 			print( e )
 			return
 
@@ -135,8 +135,8 @@ class FrameDrawer:
 
 if __name__ == '__main__':
 	try:
-		rospy.init_node( 'drawFrames' )
-		drawer = FrameDrawer()
+		rospy.init_node( 'lidar_image' )
+		lidarimage = LidarImage()
 		rospy.spin()
 
 	except rospy.ROSInterruptException:

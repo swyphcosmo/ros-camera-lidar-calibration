@@ -154,14 +154,18 @@ if not settings[ 'points' ] or not settings[ 'uvs' ]:
 	print( 'Both `points` and `uvs` are required' )
 	sys.exit( 2 )
 
-# Initialize ROS
-rospy.init_node( 'lidar_image_calibration' )
+try:
+	# Initialize ROS
+	rospy.init_node( 'lidar_image_calibration' )
 
-# look up camera name
-cameraName = rospy.resolve_name( 'camera' )
-print( 'Waiting for camera_info from ' + cameraName )
+	# look up camera name
+	cameraName = rospy.resolve_name( 'camera' )
+	print( 'Waiting for camera_info from ' + cameraName )
 
-# subscribe to camera
-camera = rospy.Subscriber( cameraName, CameraInfo, callback = cameraCallback, queue_size = 1 )
-rospy.spin()
+	# subscribe to camera
+	camera = rospy.Subscriber( cameraName, CameraInfo, callback = cameraCallback, queue_size = 1 )
+	rospy.spin()
+
+except rospy.ROSInterruptException:
+	pass
 
