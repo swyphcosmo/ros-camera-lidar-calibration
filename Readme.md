@@ -421,7 +421,58 @@ The resulting video can be found [here](https://www.youtube.com/watch?v=8yN3GAD8
 **Note:** This video was sped up to 2x speed to account for the slower rate the bagfile was played.
 
 ```shell
-$ ffmpeg -i Results/Videos/part2-lidar-image.avi -filter:v "setpts=2.0*PTS" -c:v libx264 -crf 23 -preset veryfast output.mp4
+$ ffmpeg -i Results/Videos/part2-lidar-image.avi -filter:v "setpts=0.5*PTS" -c:v libx264 -crf 23 -preset veryfast output.mp4
 ```
 
+# Task #3: RGB Point Cloud from LIDAR and Image Data
 
+Instead of projecting the points onto an image, you can also project the image data onto the 3D point cloud using the same information. 
+
+The script `scripts/lidar_image_calibration/lidar_rgb.py` was created to transmit a new point cloud containing RGB data for each point which can be projected onto the image. 
+
+Each received image is stored for use when every point cloud is received. Each point in the cloud is read using `pcl2.read_points( data )` instead of manually unpacking data as was done in `lidar_image.py`. `pcl2.create_cloud` was used to pack the point data ( 3D position, intensity, and RGB color ) into a PointCloud2 message for publishing.  
+
+## Running the script
+
+A launch file was created to run all of the required ROS nodes. 
+
+```shell
+$ roslaunch launch/part3-rgbpointcloud.launch
+```
+
+```xml
+<launch>
+	<param name="use_sim_time" value="true" />
+	<node name="rosbag" pkg="rosbag" type="play" args="-r 0.01 -s 73 --clock /vagrant/2016-11-22-14-32-13_test.part1.bag"/>
+	<node name="image_proc" pkg="image_proc" type="image_proc" respawn="false" ns="/sensors/camera">
+		<remap from="image_raw" to="image_color"/>
+	</node>
+	<node name="tf" pkg="tf" type="static_transform_publisher" args="-0.05937507 -0.48187289 -0.26464405  5.41868013  4.49854285 2.46979746 world camera 10"/>
+	<node name="tf" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 world velodyne 10"/>
+	<node name="lidar_rgb" pkg="lidar_image_calibration" type="lidar_rgb.py" args="">
+		<remap from="image" to="/sensors/camera/image_rect_color"/>
+		<remap from="camera" to="/sensors/camera/camera_info"/>
+		<remap from="velodyne" to="/sensors/velodyne_points"/>
+		<remap from="velodyne_rgb_points" to="/sensors/velodyne_rgb_points"/>
+	</node>
+</launch>
+``` 
+
+Two different transformation frames were created: 
+
+* `/world/camera`: LIDAR to image calibration
+* `/world/velodyne`: Identity transform so that the data shows up better in `rviz` 
+
+## Results
+
+[Kazam](https://apps.ubuntu.com/cat/applications/kazam/) was used to capture a short video of the RGB point cloud viewed inside of `rviz`. The results aren't great because there's a lot of computation involved, the images and point clouds are received at different frequencies, and testing was performed inside a virtual machine. 
+
+The resulting video can be found [here](https://www.youtube.com/watch?v=Zc4Ev_ggHIA). 
+
+[![RGB Point Cloud Video](http://img.youtube.com/vi/Zc4Ev_ggHIA/0.jpg)](http://www.youtube.com/watch?v=Zc4Ev_ggHIA)
+
+**Note:** This video was sped up to 2x speed to account for the slower rate the bagfile was played.
+
+```shell
+$ ffmpeg -i Results/Videos/rgb_pointcloud.mp4 -filter:v "setpts=0.5*PTS" -c:v libx264 -crf 23 -preset veryfast Results/Videos/rgb_pointcloud.mp4
+```
