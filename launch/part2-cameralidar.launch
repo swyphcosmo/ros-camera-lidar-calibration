@@ -5,7 +5,7 @@
 		<remap from="image_raw" to="image_color"/>
 	</node>
 	<node name="tf" pkg="tf" type="static_transform_publisher" args="-0.05937507 -0.48187289 -0.26464405  5.41868013  4.49854285 2.46979746 world velodyne 10"/>
-	<node name="lidar_image_calibration" pkg="lidar_image_calibration" type="lidar_image.py" args="">
+	<node name="lidar_image" pkg="lidar_image_calibration" type="lidar_image.py" args="">
 		<remap from="image" to="/sensors/camera/image_rect_color"/>
 		<remap from="image_lidar" to="/sensors/camera/image_lidar"/>
 		<remap from="camera" to="/sensors/camera/camera_info"/>

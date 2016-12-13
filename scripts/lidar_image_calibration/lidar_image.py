@@ -79,7 +79,7 @@ class LidarImage:
 				# point = ( 3.001, 0.873, -0.273, 1 )
 				# print( point )
 				rotatedPoint = Rq.dot( point )
-				if rotatedPoint[ 3 ] < 0:
+				if rotatedPoint[ 2 ] < 0:
 					continue
 
 				# print( rotatedPoint )
